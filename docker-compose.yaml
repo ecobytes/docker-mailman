@@ -56,7 +56,7 @@ services:
     restart: always
     image: postgres:9.6
     volumes:
-    - /opt/mailman/database:/var/lib/postgresql/data
+    - /srv/docker-state/mailman3/rootfs/var/lib/postgresql/data:/var/lib/postgresql/data
     networks:
     - backend
 
