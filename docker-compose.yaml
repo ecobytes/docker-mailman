@@ -2,7 +2,7 @@ version: '2'
 
 services:
   mailman-core:
-    image: maxking/mailman-core:latest
+    image: maxking/mailman-core:0.1
     container_name: mailman-core
     hostname: mailman-core
     volumes:
@@ -20,7 +20,7 @@ services:
     - backend
 
   mailman-web:
-    image: maxking/mailman-web:latest
+    image: maxking/mailman-web:0.1
     container_name: mailman-web
     hostname: mailman.ecobytes.net
     expose:

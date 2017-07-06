@@ -15,6 +15,57 @@ run multi-container applications. This repository consists of a
 [`docker-compose.yaml`](docker-compose.yaml) file which is a set of
 configurations that can be used to deploy the [Mailman 3 Suite][4].
 
+Release
+=======
+
+The tags for the images are assumed to be release versions for images. This is
+going to be somewhat common philosophy of distributing Container images where
+the images with same tags are usually updated with the new functionality.
+
+Releases will follow the following rules:
+
+* Images tagged like A.B.C will never change. If you want to pin down versions
+  of Images, use these tags.
+
+* Images tagged with A.B will correspond to the latest A.B.C version
+  released. Releases in A.B series are supposed to be backwards compatible
+  i.e. any existing installation should not break when upgrading between
+  subversions of A.B.C. So, if you want the latest updates and want to
+  frequently update your installation without having to change the version
+  numbers, you can use this.
+
+* Any changes in the Mailman components of the Images will cause a bump in the
+  Minor version i.e. A.(B+1) will have one (and only one) updated Mailman
+  component from A.B. Also, significant change in functionality, that might
+  change how Images work or how people interact with the containers, can also
+  cause a bump in the minor version.
+
+* Major versions will change either when there are backwards imcompatible
+  changes or when the releases reach a certain set milestone.
+
+
+Security
+--------
+
+All the releases are signed and can be verified using [Docker Content
+Trust][14]. To make sure that your docker client actually verifies these
+signatures, you can enable Docker's content trust by setting an environment
+variable `DOCKER_CONTENT_TRUST`. In bash/zsh you can try this:
+
+```bash
+$ export DOCKER_CONTENT_TRUST=1
+```
+
+Or, alternatively, you can do this on a per-command basis without setting the
+environment variable above. For example, when pulling an image:
+
+```bash
+$ docker pull --disable-content-trust=false maxking/mailman-core:release
+```
+
+The above command will fail if the release tag doesn't exist or is not signed.
+
+
 Dependencies
 ============
 - Docker
@@ -70,6 +121,13 @@ These are the variables that you MUST change before deploying:
 For more details on how to configure this image, please look [Mailman-core's
 Readme](core/README.md)
 
+If you need more advanced configuration, you can have configuration files for
+Mailman Core and Django too. For Core, it needs to exist at
+`/opt/mailman/core/mailman-extra.cfg`, anything in the configuration file will
+override the default ones. For Django, you can add settings to
+`/opt/mailman/web/settings_local.py` where you can override the default
+settings.
+
 Running
 =======
 
@@ -81,7 +139,7 @@ $ mkdir -p /opt/mailman/web
 $ git clone https://github.com/maxking/docker-mailman
 $ cd docker-mailman
 # Change some configuration variables as mentioned above.
-$ docker-compose start
+$ docker-compose up -d
 ```
 
 This command will do several things, most importantly:
@@ -121,7 +179,9 @@ this. However, these are very easy to understand if you know how docker works.
   running. [Uwsgi][7] server is used to run a web server with the configuration
   provided in this repository [here](web/assets/settings.py). You may want to
   change the setting `ALLOWED_HOSTS` in the settings before deploying the
-  application in production.
+  application in production. You can do that by adding a
+  `/opt/mailman/web/settings_local.py` which is imported by the Django when
+  running.
 
 - Spin off a postgresql database container which is used by both mailman-core
   and mailman-web as their primary database.
@@ -138,7 +198,7 @@ this. However, these are very easy to understand if you know how docker works.
 
 - mailman-web mounts `/opt/mailman/web` from the host OS to
   `/opt/mailman-web-data` in the container. It consists of the logs and
-  settings.py file for Django.
+  settings_local.py file for Django.
 
 - database mounts `/opt/mailman/database` at `/var/lib/postgresql/data` so that
   postgresql can persists its data even if the database containers are
@@ -174,10 +234,10 @@ Exim, but just for the reference, it looks like this:
 [mta]
 incoming: mailman.mta.exim4.LMTP
 outgoing: mailman.mta.deliver.deliver
-lmtp_host: $MM_HOSTNAME
+lmtp_host: $MM_HOSTNAME                   # IP Address of mailman-core cotainer.
 lmtp_port: 8024
-smtp_host: $SMTP_HOST
-smtp_port: $SMTP_PORT
+smtp_host: $SMTP_HOST                     # IP Address of host where exim is.
+smtp_port: $SMTP_PORT                     # Port on which exim is listening.
 configuration: python:mailman.config.exim4
 ```
 
@@ -213,9 +273,9 @@ To configure Mailman to use Postfix, add the following to `mailman-extra.cfg` at
 [mta]
 incoming: mailman.mta.postfix.LMTP
 outgoing: mailman.mta.deliver.deliver
-lmtp_host: 172.19.199.3
+lmtp_host: 172.19.199.2                   # IP Address of mailman-core container
 lmtp_port: 8024
-smtp_host: 172.19.199.1
+smtp_host: 172.19.199.1                   # IP Address of host where postfix is.
 smtp_port: 25
 configuration: /etc/postfix-mailman.cfg
 ```
@@ -247,8 +307,8 @@ server {
 
         location / {
                 # First attempt to serve request as file, then
-	    include uwsgi_params;
-        uwsgi_pass 172.19.199.3:8000;
+                include uwsgi_params;
+                uwsgi_pass 172.19.199.3:8000;
 
         }
 
@@ -308,3 +368,5 @@ more details.
 [10]: https://certbot.eff.org/
 [11]: https://mailman.readthedocs.io/en/latest/src/mailman/docs/database.html
 [12]: http://www.postfix.org/
+[13]: http://semver.org/
+[14]: https://docs.docker.com/engine/security/trust/content_trust/
